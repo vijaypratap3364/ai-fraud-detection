@@ -1,0 +1,80 @@
+# AI Financial Fraud Detection System - Dependencies
+
+# ============================================================================
+# CORE DATA PROCESSING
+# ============================================================================
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+
+# ============================================================================
+# DETECTION LAYER - ML Models
+# ============================================================================
+xgboost>=2.0.0              # Primary detection model
+lightgbm>=4.0.0             # Alternative detection model
+imbalanced-learn>=0.11.0    # SMOTE for handling class imbalance
+
+# ============================================================================
+# AGENT LAYER - LLM & Orchestration
+# ============================================================================
+langchain>=0.1.0            # Agent orchestration framework
+langchain-anthropic>=0.1.0  # Anthropic integration for LangChain
+anthropic>=0.18.0           # Anthropic API client
+# OR use OpenAI: openai>=1.0.0, langchain-openai>=0.0.5
+
+# ============================================================================
+# AGENT LAYER - Vector Database & Embeddings
+# ============================================================================
+chromadb>=0.4.0             # Vector database for similarity search
+sentence-transformers>=2.2.0 # For generating embeddings
+
+# ============================================================================
+# BACKEND - API Framework
+# ============================================================================
+fastapi>=0.100.0            # REST API framework
+uvicorn[standard]>=0.23.0   # ASGI server
+pydantic>=2.0.0             # Data validation
+websockets>=11.0            # For real-time streaming
+
+# ============================================================================
+# FRONTEND - Dashboard
+# ============================================================================
+streamlit>=1.28.0           # Dashboard framework
+plotly>=5.17.0              # Interactive visualizations
+altair>=5.1.0               # Alternative visualization library
+
+# ============================================================================
+# VISUALIZATION (for notebooks & analysis)
+# ============================================================================
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# ============================================================================
+# UTILITIES
+# ============================================================================
+python-dotenv>=1.0.0        # Environment variable management
+pyyaml>=6.0.0               # Config file parsing
+python-json-logger>=2.0.0   # Structured logging
+tqdm>=4.66.0                # Progress bars
+
+# ============================================================================
+# DEVELOPMENT & NOTEBOOKS
+# ============================================================================
+jupyter>=1.0.0
+notebook>=7.0.0
+ipykernel>=6.25.0
+jupyterlab>=4.0.0
+
+# ============================================================================
+# TESTING
+# ============================================================================
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0      # For testing async code
+
+# ============================================================================
+# OPTIONAL - Deployment & Monitoring
+# ============================================================================
+# gunicorn>=21.2.0          # Production WSGI server
+# sentry-sdk>=1.32.0        # Error tracking
+# prometheus-client>=0.18.0 # Metrics export

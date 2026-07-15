@@ -1,0 +1,232 @@
+# AI Financial Fraud Detection System - Configuration
+
+# ============================================================================
+# DATA PATHS
+# ============================================================================
+data:
+  raw:
+    kaggle_dataset: "data/raw/creditcard.csv"
+  processed:
+    transactions: "data/processed/transactions_processed.csv"
+    train_set: "data/processed/train.csv"
+    test_set: "data/processed/test.csv"
+  synthetic:
+    customers: "data/synthetic/customers.csv"
+    history: "data/synthetic/transaction_history.csv"
+    fraud_cases: "data/synthetic/known_fraud_cases.csv"
+
+  # Data processing parameters
+  test_size: 0.2
+  validation_size: 0.1
+  random_state: 42
+
+# ============================================================================
+# DETECTION MODEL (Layer 1 - Classical ML)
+# ============================================================================
+detection:
+  # Model choice: xgboost or lightgbm
+  model_type: "xgboost"
+
+  # XGBoost hyperparameters
+  xgboost:
+    n_estimators: 100
+    max_depth: 6
+    learning_rate: 0.1
+    subsample: 0.8
+    colsample_bytree: 0.8
+    scale_pos_weight: 100  # Handles class imbalance (adjust based on fraud rate)
+    random_state: 42
+
+  # LightGBM hyperparameters (alternative)
+  lightgbm:
+    n_estimators: 100
+    max_depth: 6
+    learning_rate: 0.1
+    num_leaves: 31
+    subsample: 0.8
+    colsample_bytree: 0.8
+    scale_pos_weight: 100
+    random_state: 42
+
+  # Class imbalance handling
+  imbalance:
+    method: "smote"  # Options: smote, class_weight, undersampling
+    smote_sampling_strategy: 0.1  # Minority class ratio after SMOTE
+
+  # Risk thresholds (probability scores)
+  thresholds:
+    investigation: 0.7  # Triggers agent investigation
+    high_risk: 0.95
+    medium_risk: 0.80
+    low_risk: 0.65
+
+  # Model persistence
+  models:
+    save_path: "models/detection/"
+    best_model: "models/detection/xgboost_best.pkl"
+
+# ============================================================================
+# AGENT INVESTIGATION (Layer 2 - The Differentiator)
+# ============================================================================
+agent:
+  # LLM configuration
+  llm:
+    provider: "anthropic"  # Options: anthropic, openai
+    model: "claude-sonnet-4"
+    temperature: 0.0  # Low temperature for consistent, factual output
+    max_tokens: 2000
+    timeout: 30  # seconds
+
+  # Agent behavior
+  investigation:
+    max_retries: 2
+    enable_tool_calling: true
+    tools:
+      - customer_history
+      - fraud_similarity_search
+      - risk_calculator
+
+  # Tool: Customer History Lookup
+  customer_history:
+    lookback_days: 90
+    max_transactions: 50
+    anomaly_threshold_std: 2.0  # Standard deviations for pattern break detection
+
+  # Tool: Fraud Similarity Search (RAG)
+  similarity_search:
+    top_k: 5  # Number of similar past fraud cases to retrieve
+    similarity_threshold: 0.7
+    embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+
+  # Tool: Risk Factor Calculator
+  risk_calculator:
+    factors:
+      - velocity  # Transactions per hour
+      - baseline_deviation  # % deviation from customer's average
+      - geographic_distance  # km from last transaction
+      - merchant_category_new  # Boolean: new merchant category
+      - time_anomaly  # Boolean: unusual time of day
+
+    # Thresholds for risk factors
+    velocity_threshold: 5  # transactions/hour
+    baseline_deviation_threshold: 3.0  # std deviations
+    geographic_distance_threshold: 500  # km
+
+# ============================================================================
+# VECTOR DATABASE (for Similarity Search)
+# ============================================================================
+vectordb:
+  provider: "chroma"
+  path: "chroma_db/"
+  collection_name: "fraud_cases"
+  embedding_dimension: 384  # Matches all-MiniLM-L6-v2
+  distance_metric: "cosine"
+
+# ============================================================================
+# SIMULATION (Real-time Stream Replay)
+# ============================================================================
+simulation:
+  enabled: true
+  transaction_rate: 2.0  # transactions per second
+  replay_speed: 1.0  # 1.0 = real-time, 2.0 = 2x speed
+  shuffle_data: true  # Randomize order for realistic stream
+  loop: true  # Restart from beginning when dataset ends
+
+# ============================================================================
+# API (FastAPI Backend)
+# ============================================================================
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: true  # Auto-reload on code changes (dev only)
+
+  # CORS settings
+  cors:
+    enabled: true
+    origins:
+      - "http://localhost:8501"  # Streamlit default
+      - "http://localhost:3000"  # React default
+    allow_credentials: true
+    allow_methods: ["*"]
+    allow_headers: ["*"]
+
+  # WebSocket for real-time updates
+  websocket:
+    enabled: true
+    path: "/ws/transactions"
+
+# ============================================================================
+# DASHBOARD (Frontend)
+# ============================================================================
+dashboard:
+  framework: "streamlit"  # Options: streamlit, react
+
+  # Streamlit settings
+  streamlit:
+    host: "localhost"
+    port: 8501
+    theme: "dark"
+    page_title: "AI Fraud Detection System"
+
+  # UI behavior
+  ui:
+    max_visible_transactions: 100
+    auto_refresh_interval: 1  # seconds
+    show_agent_reasoning: true
+    show_eval_metrics: true
+
+# ============================================================================
+# EVALUATION
+# ============================================================================
+evaluation:
+  metrics:
+    - precision
+    - recall
+    - f1
+    - pr_auc  # Precision-Recall AUC (more important than ROC-AUC for imbalanced data)
+    - false_positive_rate
+
+  # Live eval scorecard
+  live_eval:
+    enabled: true
+    update_interval: 10  # Update metrics every N transactions
+    window_size: 1000  # Rolling window for metrics
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+  # File logging
+  file:
+    enabled: true
+    path: "logs/fraud_detection.log"
+    max_size_mb: 10
+    backup_count: 5
+    format: "json"  # Options: json, text
+
+  # Console logging
+  console:
+    enabled: true
+    format: "text"
+
+  # What to log
+  log_transactions: true
+  log_agent_reasoning: true
+  log_model_predictions: true
+
+# ============================================================================
+# DEPLOYMENT
+# ============================================================================
+deployment:
+  environment: "development"  # Options: development, staging, production
+
+  # Environment-specific settings (override above)
+  production:
+    api:
+      reload: false
+    logging:
+      level: "WARNING"
+    simulation:
+      transaction_rate: 10.0  # Higher rate for production demo
