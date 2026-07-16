@@ -1,0 +1,13 @@
+{
+  "total_cases": 200,
+  "by_type": {
+    "card_not_present": 41,
+    "account_takeover": 34,
+    "skimming": 34,
+    "card_theft": 32,
+    "friendly_fraud": 31,
+    "synthetic_identity": 28
+  },
+  "generated_at": "2026-07-15T21:38:59.677315",
+  "description": "Known fraud cases for RAG similarity search in agent investigation layer"
+}
