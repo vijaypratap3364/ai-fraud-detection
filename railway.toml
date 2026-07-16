@@ -1,0 +1,66 @@
+# Railway Deployment Configuration
+
+# Build settings
+build:
+  builder: docker
+  dockerfilePath: Dockerfile
+
+# Deploy settings
+deploy:
+  # Health check path
+  healthcheckPath: /health
+  healthcheckTimeout: 300
+
+  # Restart policy
+  restartPolicyType: ON_FAILURE
+  restartPolicyMaxRetries: 3
+
+# Environment variables (set these in Railway dashboard)
+# Variables to set in Railway dashboard:
+# - PYTHONPATH=/app
+# - PYTHONUNBUFFERED=1
+
+# Services
+services:
+  # API Service
+  - name: fraud-detection-api
+    source: .
+    dockerfilePath: Dockerfile
+    startCommand: python src/api/main.py
+    port: 8000
+    healthCheckPath: /health
+    envVars:
+      - name: PYTHONPATH
+        value: /app
+      - name: PYTHONUNBUFFERED
+        value: "1"
+
+  # Dashboard Service
+  - name: fraud-detection-dashboard
+    source: .
+    dockerfilePath: Dockerfile
+    startCommand: streamlit run frontend/app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
+    port: 8501
+    envVars:
+      - name: PYTHONPATH
+        value: /app
+      - name: PYTHONUNBUFFERED
+        value: "1"
+      - name: STREAMLIT_SERVER_HEADLESS
+        value: "true"
+      - name: STREAMLIT_BROWSER_GATHER_USAGE_STATS
+        value: "false"
+      - name: STREAMLIT_SERVER_PORT
+        value: "$PORT"
+      - name: STREAMLIT_SERVER_ADDRESS
+        value: "0.0.0.0"
+
+# Optional: Separate simulator service (run as cron job or separate service)
+# Uncomment if you want to run simulator as a separate service
+# services:
+#   - name: fraud-detection-simulator
+#     source: .
+#     dockerfilePath: Dockerfile
+#     startCommand: python src/simulation/stream.py --rate 5 --speed 1 --loop
+#     # Run as background worker, no port needed
+#     # This would be a background worker service
