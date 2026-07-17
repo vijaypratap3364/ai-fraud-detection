@@ -39,6 +39,15 @@ def download_file(url, dest_path, expected_mb=None):
 
     try:
         response = requests.get(url, stream=True, timeout=60)
+        if response.status_code == 404:
+            # Handle missing files that are expected to be tiny/empty
+            if expected_mb is not None and expected_mb < 0.01:
+                print(f"⚠ {dest_path.name} not in release (404), creating empty file locally")
+                dest_path.touch()
+                return True
+            else:
+                print(f"✗ {dest_path.name} not found in release (404)")
+                return False
         response.raise_for_status()
 
         total_size = int(response.headers.get('content-length', 0))
