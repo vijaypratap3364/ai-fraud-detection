@@ -199,8 +199,14 @@ def get_next_transaction(df, index):
     else:
         customer_id = raw_customer_id
 
+    # FIX: the CSV's 'transaction_number' column isn't actually unique across
+    # rows, which produced duplicate transaction_ids. Those duplicates then
+    # became duplicate st.button() widget keys later in the UI, crashing the
+    # whole app with DuplicateWidgetID. `index` here is the simulator's own
+    # incrementing counter (st.session_state.last_sim_txn) and is guaranteed
+    # unique for as long as the simulator runs, so use that instead.
     return {
-        'transaction_id': f"TXN_{int(row.get('transaction_number', index)):08d}",
+        'transaction_id': f"TXN_{index:08d}",
         'customer_id': customer_id,
         'amount': float(row['Amount']),
         'timestamp': float(row['Time']),
@@ -425,7 +431,7 @@ with tab1:
         feed_container = st.container()
         with feed_container:
             if st.session_state.transactions:
-                for txn in reversed(st.session_state.transactions[-50:]):
+                for feed_position, txn in enumerate(reversed(st.session_state.transactions[-50:])):
                     is_fraud = txn.get('is_fraud', False)
                     investigated = txn.get('investigated', False)
 
@@ -476,7 +482,7 @@ with tab1:
                             dev = txn.get('deviation_from_baseline', 0)
                             st.caption(f"Dev: {dev:.1f}σ")
                         with cols[5]:
-                            if investigated and st.button("🔍", key=f"view_{txn.get('transaction_id')}", help="View investigation"):
+                            if investigated and st.button("🔍", key=f"view_{txn.get('transaction_id')}_{feed_position}", help="View investigation"):
                                 st.session_state.selected_investigation = txn.get('transaction_id')
                                 st.rerun()
 
