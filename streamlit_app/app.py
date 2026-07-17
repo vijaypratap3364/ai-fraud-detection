@@ -58,10 +58,21 @@ st.markdown("""
         margin-bottom: 1rem;
     }
     .metric-card {
-        background: #f0f2f6;
+        background: rgba(255, 255, 255, 0.06);
         padding: 1rem;
         border-radius: 0.5rem;
         border-left: 4px solid #1f77b4;
+        color: #fafafa;
+    }
+    .metric-card h4 {
+        color: #b0b8c4;
+        margin: 0 0 0.25rem 0;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    .metric-card h2 {
+        color: #fafafa;
+        margin: 0;
     }
     .flagged-alert {
         background: #ffe6e6;
