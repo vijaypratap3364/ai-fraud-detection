@@ -260,8 +260,10 @@ with st.sidebar:
 
     stream_rate = st.slider(
         "Stream Rate (txns/sec)",
-        min_value=1, max_value=20, value=5,
-        help="Simulated transaction rate"
+        min_value=1, max_value=20, value=2,  # FIX: lower default — agent investigations
+        # (Chroma + sentence-transformers) are CPU-bound and slow on Streamlit
+        # Cloud's free tier; a high default rate looked like freezing.
+        help="Simulated transaction rate. Lower values give smoother, more visible updates since each flagged transaction triggers a real (slow) AI investigation."
     )
 
     auto_investigate = st.checkbox("Auto-investigate flagged", value=True)
@@ -333,31 +335,50 @@ with tab1:
         if st.session_state.simulator_running:
             df = load_transaction_data()
             if not df.empty and st.session_state.last_sim_txn < len(df):
-                # Process batch based on rate
-                batch_size = max(1, stream_rate // 2)
-                for _ in range(batch_size):
-                    if st.session_state.last_sim_txn >= len(df):
-                        st.session_state.simulator_running = False
-                        break
+                # FIX: the old code processed `stream_rate // 2` transactions per
+                # rerun, and ran a full synchronous agent investigation (Chroma
+                # query + sentence-transformers embedding, both CPU-bound and
+                # slow on Streamlit Cloud's free tier) inline for every flagged
+                # one *before* re-rendering. With several investigations queued
+                # up in a single batch, the page would freeze/black-screen for
+                # many seconds with nothing drawn in between. Processing exactly
+                # one transaction per rerun means Streamlit repaints after every
+                # single step, so progress is visible instead of looking stuck.
+                status_placeholder = st.empty()
+                status_placeholder.caption(
+                    f"⏳ Processing transaction {st.session_state.last_sim_txn + 1} of {len(df)}..."
+                )
 
-                    txn = get_next_transaction(df, st.session_state.last_sim_txn)
-                    st.session_state.last_sim_txn += 1
+                txn = get_next_transaction(df, st.session_state.last_sim_txn)
+                st.session_state.last_sim_txn += 1
 
-                    if txn:
-                        # Add to feed
-                        txn['investigated'] = False
-                        st.session_state.transactions.append(txn)
+                if txn:
+                    # Add to feed
+                    txn['investigated'] = False
+                    st.session_state.transactions.append(txn)
 
-                        # Auto-investigate if flagged
-                        if auto_investigate and txn['fraud_probability'] >= detection_threshold:
-                            investigation = run_investigation(txn, detection_threshold)
-                            if investigation:
-                                txn['investigated'] = True
-                                txn['investigation'] = investigation
-                                st.session_state.investigations[txn['transaction_id']] = investigation
+                    # Auto-investigate if flagged
+                    if auto_investigate and txn['fraud_probability'] >= detection_threshold:
+                        status_placeholder.caption(
+                            f"🔍 Running agent investigation on {txn['transaction_id']} "
+                            f"(this is the slow step: RAG search + embedding model)..."
+                        )
+                        investigation = run_investigation(txn, detection_threshold)
+                        if investigation:
+                            txn['investigated'] = True
+                            txn['investigation'] = investigation
+                            st.session_state.investigations[txn['transaction_id']] = investigation
 
-                        update_metrics(txn, txn.get('investigation'))
+                    update_metrics(txn, txn.get('investigation'))
 
+                if st.session_state.last_sim_txn >= len(df):
+                    st.session_state.simulator_running = False
+
+                # FIX: stream_rate now controls a small delay between reruns
+                # instead of a batch size, so higher "speed" settings just mean
+                # less pause between visible updates, not more blocking work
+                # crammed into one rerun.
+                time.sleep(max(0.05, 1.0 / stream_rate))
                 st.rerun()
             elif df.empty:
                 st.session_state.simulator_running = False
