@@ -138,11 +138,13 @@ if 'last_sim_txn' not in st.session_state:
 def load_transaction_data():
     """Load synthetic transaction data for simulation."""
     try:
-        # Try demo file first (smaller, faster)
-        demo_path = PROJECT_ROOT / 'hf_data_staging' / 'synthetic' / 'transaction_history_demo.csv'
-        if demo_path.exists():
-            data_path = demo_path
-        else:
+        # FIX: download_data.py downloads to data/synthetic/transaction_history_demo.csv
+        # The old code pointed at a nonexistent 'hf_data_staging' folder and a
+        # fallback filename missing the '_demo' suffix, so this always failed
+        # and the simulator had nothing to stream.
+        data_path = PROJECT_ROOT / 'data' / 'synthetic' / 'transaction_history_demo.csv'
+        if not data_path.exists():
+            # fallback to non-demo filename if it's ever used instead
             data_path = PROJECT_ROOT / 'data' / 'synthetic' / 'transaction_history.csv'
 
         df = pd.read_csv(data_path)
@@ -168,9 +170,20 @@ def get_next_transaction(df, index):
     if index >= len(df):
         return None
     row = df.iloc[index]
+
+    # FIX: the old default expression `int(row.get('customer_id', 0))` was
+    # evaluated eagerly even when customer_id already existed as a string
+    # (e.g. "CUST_000001"), which raised ValueError on int(). Now we only
+    # build the fallback id when customer_id is actually missing.
+    raw_customer_id = row.get('customer_id', None)
+    if raw_customer_id is None or (isinstance(raw_customer_id, float) and pd.isna(raw_customer_id)):
+        customer_id = f"CUST_{index:06d}"
+    else:
+        customer_id = raw_customer_id
+
     return {
         'transaction_id': f"TXN_{int(row.get('transaction_number', index)):08d}",
-        'customer_id': row.get('customer_id', f"CUST_{int(row.get('customer_id', 0)):06d}"),
+        'customer_id': customer_id,
         'amount': float(row['Amount']),
         'timestamp': float(row['Time']),
         'fraud_probability': float(row.get('fraud_probability', 0)),
@@ -346,6 +359,9 @@ with tab1:
                         update_metrics(txn, txn.get('investigation'))
 
                 st.rerun()
+            elif df.empty:
+                st.session_state.simulator_running = False
+                st.error("No transaction data available — check that data/synthetic/transaction_history_demo.csv was downloaded.")
 
         # Display transactions (newest first)
         feed_container = st.container()
@@ -388,7 +404,8 @@ with tab1:
                         with cols[1]:
                             st.caption(f"${txn.get('amount', 0):.2f} | {txn.get('customer_id', 'N/A')}")
                         with cols[2]:
-                            prob = txn.get('fraud_prob', 0)
+                            # FIX: key was 'fraud_prob' but transactions store 'fraud_probability'
+                            prob = txn.get('fraud_probability', 0)
                             color = "risk-high" if prob > 0.7 else "risk-medium" if prob > 0.4 else "risk-low"
                             st.markdown(f"<span class='{color}'>{prob:.1%}</span>", unsafe_allow_html=True)
                         with cols[3]:
@@ -397,7 +414,8 @@ with tab1:
                             else:
                                 st.caption("Pending")
                         with cols[4]:
-                            dev = txn.get('deviation', 0)
+                            # FIX: key was 'deviation' but transactions store 'deviation_from_baseline'
+                            dev = txn.get('deviation_from_baseline', 0)
                             st.caption(f"Dev: {dev:.1f}σ")
                         with cols[5]:
                             if investigated and st.button("🔍", key=f"view_{txn.get('transaction_id')}", help="View investigation"):
@@ -539,9 +557,10 @@ with tab3:
             specs=[[{"secondary_y": True}, {}], [{}, {}]]
         )
 
-        # Fraud prob over time
+        # FIX: DataFrame column is 'fraud_probability', not 'fraud_prob' —
+        # the old key name would raise KeyError here as soon as >10 txns existed.
         fig.add_trace(
-            go.Scatter(x=list(range(len(df))), y=df['fraud_prob'],
+            go.Scatter(x=list(range(len(df))), y=df['fraud_probability'],
                       mode='lines', name='Fraud Prob', line=dict(color='#1f77b4')),
             row=1, col=1
         )
