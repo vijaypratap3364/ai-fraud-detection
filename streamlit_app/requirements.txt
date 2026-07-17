@@ -5,3 +5,5 @@ requests==2.31.0
 numpy==1.23.5
 pyyaml==6.0.1
 tqdm==4.66.1
+chromadb
+sentence-transformers
