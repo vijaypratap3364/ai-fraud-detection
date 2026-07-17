@@ -22,13 +22,18 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Import investigation tools directly (no API calls needed)
-from src.agent.tools.investigation_tools import (
-    investigate_transaction,
-    lookup_customer_history,
-    search_similar_fraud_cases,
-    calculate_risk_factors,
-    _initialize as init_tools,
-)
+try:
+    from src.agent.tools.investigation_tools import (
+        investigate_transaction,
+        lookup_customer_history,
+        search_similar_fraud_cases,
+        calculate_risk_factors,
+        _initialize as init_tools,
+    )
+    TOOLS_AVAILABLE = True
+except ImportError as e:
+    TOOLS_AVAILABLE = False
+    IMPORT_ERROR = str(e)
 
 # ============================================================
 # PAGE CONFIG
@@ -95,14 +100,21 @@ st.markdown("""
 @st.cache_resource
 def initialize_tools():
     """Initialize investigation tools once (cached)."""
+    if not TOOLS_AVAILABLE:
+        raise RuntimeError(f"Investigation tools unavailable: {IMPORT_ERROR}")
     init_tools()
     return True
 
 # Initialize on first load
 if 'tools_initialized' not in st.session_state:
     with st.spinner("Loading investigation tools..."):
-        initialize_tools()
-    st.session_state.tools_initialized = True
+        try:
+            initialize_tools()
+            st.session_state.tools_initialized = True
+            st.session_state.tools_error = None
+        except Exception as e:
+            st.session_state.tools_initialized = False
+            st.session_state.tools_error = str(e)
 
 # Session state defaults
 if 'transactions' not in st.session_state:
