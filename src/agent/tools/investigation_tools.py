@@ -19,7 +19,7 @@ from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 
 # Paths
-PROJECT_ROOT = Path(__file__).parent.parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 DATA_SYNTHETIC = PROJECT_ROOT / 'data' / 'synthetic'
 CHROMA_PATH = PROJECT_ROOT / 'chroma_db'
 
@@ -46,10 +46,10 @@ def _initialize():
     # crashing the whole Streamlit process and causing an infinite
     # restart loop (visible in logs as repeated "Initializing investigation
     # tools..." lines with no completion).
-    txn_path = Path(__file__).parent.parent.parent / 'data' / 'synthetic' / 'transaction_history_demo.csv'
+    txn_path = Path(__file__).parent.parent.parent.parent / 'data' / 'synthetic' / 'transaction_history_demo.csv'
     if not txn_path.exists():
         # fallback in case a non-demo file is ever used instead
-        fallback_path = Path(__file__).parent.parent.parent / 'data' / 'synthetic' / 'transaction_history.csv'
+        fallback_path = Path(__file__).parent.parent.parent.parent / 'data' / 'synthetic' / 'transaction_history.csv'
         if fallback_path.exists():
             txn_path = fallback_path
         else:
@@ -60,12 +60,12 @@ def _initialize():
     _transaction_history = pd.read_csv(txn_path)
 
     # Load enriched customers
-    cust_path = Path(__file__).parent.parent.parent / 'data' / 'synthetic' / 'customers_enriched.csv'
+    cust_path = Path(__file__).parent.parent.parent.parent / 'data' / 'synthetic' / 'customers_enriched.csv'
     _customers_enriched = pd.read_csv(cust_path)
 
     # Initialize Chroma
     _chroma_client = chromadb.PersistentClient(
-        path=str(Path(__file__).parent.parent.parent / 'chroma_db'),
+        path=str(Path(__file__).parent.parent.parent.parent / 'chroma_db'),
         settings=Settings(anonymized_telemetry=False)
     )
     _chroma_collection = _chroma_client.get_collection("fraud_cases")
