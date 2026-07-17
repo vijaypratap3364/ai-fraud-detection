@@ -7,7 +7,6 @@ Core tools for the fraud investigation agent:
 3. Risk Factor Calculator
 """
 
-import os
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -19,15 +18,10 @@ import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 
-# Paths - use environment variables for HF Spaces compatibility, fallback to local
+# Paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-
-# Environment variable overrides for HF Spaces deployment
-CHROMA_PATH = Path(os.environ.get("CHROMA_DB_PATH", PROJECT_ROOT / 'chroma_db'))
-MODEL_PATH = Path(os.environ.get("MODEL_PATH", PROJECT_ROOT / 'models' / 'detection' / 'xgboost_model.pkl'))
-CUSTOMER_DATA_PATH = Path(os.environ.get("CUSTOMER_DATA_PATH", PROJECT_ROOT / 'data' / 'synthetic' / 'customers_enriched.csv'))
-TRANSACTION_HISTORY_PATH = Path(os.environ.get("TRANSACTION_HISTORY_PATH", PROJECT_ROOT / 'data' / 'synthetic' / 'transaction_history.csv'))
-FRAUD_CASES_PATH = Path(os.environ.get("FRAUD_CASES_PATH", PROJECT_ROOT / 'data' / 'synthetic' / 'known_fraud_cases.json'))
+DATA_SYNTHETIC = PROJECT_ROOT / 'data' / 'synthetic'
+CHROMA_PATH = PROJECT_ROOT / 'chroma_db'
 
 # Load data once at module level
 _transaction_history: pd.DataFrame = None
@@ -46,17 +40,32 @@ def _initialize():
 
     print("Initializing investigation tools...")
 
-    # Load transaction history
-    txn_path = TRANSACTION_HISTORY_PATH
+    # FIX: download_data.py only downloads 'transaction_history_demo.csv' —
+    # the file 'transaction_history.csv' (without _demo) is never fetched,
+    # so this pd.read_csv() was raising FileNotFoundError on every call,
+    # crashing the whole Streamlit process and causing an infinite
+    # restart loop (visible in logs as repeated "Initializing investigation
+    # tools..." lines with no completion).
+    txn_path = Path(__file__).parent.parent.parent / 'data' / 'synthetic' / 'transaction_history_demo.csv'
+    if not txn_path.exists():
+        # fallback in case a non-demo file is ever used instead
+        fallback_path = Path(__file__).parent.parent.parent / 'data' / 'synthetic' / 'transaction_history.csv'
+        if fallback_path.exists():
+            txn_path = fallback_path
+        else:
+            raise FileNotFoundError(
+                f"Could not find transaction history CSV at {txn_path} or {fallback_path}. "
+                f"Check that download_data.py ran successfully."
+            )
     _transaction_history = pd.read_csv(txn_path)
 
     # Load enriched customers
-    cust_path = CUSTOMER_DATA_PATH
+    cust_path = Path(__file__).parent.parent.parent / 'data' / 'synthetic' / 'customers_enriched.csv'
     _customers_enriched = pd.read_csv(cust_path)
 
     # Initialize Chroma
     _chroma_client = chromadb.PersistentClient(
-        path=str(CHROMA_PATH),
+        path=str(Path(__file__).parent.parent.parent / 'chroma_db'),
         settings=Settings(anonymized_telemetry=False)
     )
     _chroma_collection = _chroma_client.get_collection("fraud_cases")
