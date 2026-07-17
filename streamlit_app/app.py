@@ -141,6 +141,8 @@ if 'simulator_running' not in st.session_state:
     st.session_state.simulator_running = False
 if 'last_sim_txn' not in st.session_state:
     st.session_state.last_sim_txn = 0
+if 'last_investigation_error' not in st.session_state:
+    st.session_state.last_investigation_error = None
 
 # ============================================================
 # DATA LOADING (for simulator)
@@ -212,9 +214,21 @@ def run_investigation(transaction, threshold=0.7):
             fraud_probability=transaction['fraud_probability'],
             detection_threshold=threshold
         )
+        # FIX: clear any stale error once a call actually succeeds
+        st.session_state.last_investigation_error = None
         return report.to_dict()
     except Exception as e:
-        st.error(f"Investigation failed: {e}")
+        # FIX: st.error() here only flashes for the current script run and
+        # vanishes on the next automatic rerun — since the simulator reruns
+        # constantly, the error was never actually visible. Store it in
+        # session_state instead so it persists on screen until dismissed,
+        # and print it with flush=True so it's guaranteed to show up in the
+        # Streamlit Cloud log immediately rather than sitting in a stdout
+        # buffer that may never flush while the process stays alive.
+        import traceback
+        tb = traceback.format_exc()
+        st.session_state.last_investigation_error = tb
+        print(f"INVESTIGATION FAILED: {e}\n{tb}", flush=True)
         return None
 
 def update_metrics(transaction, investigation=None):
@@ -324,6 +338,13 @@ with st.sidebar:
 # ============================================================
 st.markdown('<h1 class="main-header">🛡️ AI Fraud Detection System</h1>', unsafe_allow_html=True)
 st.caption("Real-time fraud detection with agentic investigation • XGBoost + Agent RAG • Streamlit Cloud Deployment")
+
+if st.session_state.last_investigation_error:
+    with st.expander("⚠️ Last investigation failed — click to see why", expanded=True):
+        st.code(st.session_state.last_investigation_error, language="text")
+        if st.button("Dismiss"):
+            st.session_state.last_investigation_error = None
+            st.rerun()
 
 # Tabs
 tab1, tab2, tab3, tab4 = st.tabs([
@@ -463,37 +484,47 @@ with tab1:
         st.markdown("### 📊 Live Scorecard")
 
         m = st.session_state.metrics
-        mcol1, mcol2 = st.columns(2)
-        with mcol1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h4>Precision</h4>
-                <h2>{m['precision']:.1%}</h2>
-            </div>
-            """, unsafe_allow_html=True)
-        with mcol2:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h4>Recall</h4>
-                <h2>{m['recall']:.1%}</h2>
-            </div>
-            """, unsafe_allow_html=True)
-
-        mcol3, mcol4 = st.columns(2)
-        with mcol3:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h4>F1 Score</h4>
-                <h2>{m['f1']:.3f}</h2>
-            </div>
-            """, unsafe_allow_html=True)
-        with mcol4:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h4>FPR</h4>
-                <h2>{m['fpr']:.3%}</h2>
-            </div>
-            """, unsafe_allow_html=True)
+        # FIX: the old layout used nested st.columns(2) inside an already-narrow
+        # sidebar column, which squeezed each card so much that labels like
+        # "Precision" wrapped onto two lines, stretching the box tall and thin.
+        # Rendering all four as one HTML grid keeps each box small, square,
+        # and compact regardless of column width, with text sized to fit.
+        st.markdown(f"""
+        <style>
+        .scorecard-grid {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }}
+        .scorecard-box {{
+            background: rgba(255, 255, 255, 0.06);
+            border-left: 3px solid #1f77b4;
+            border-radius: 0.4rem;
+            padding: 0.6rem 0.5rem;
+            text-align: center;
+        }}
+        .scorecard-box .label {{
+            color: #b0b8c4;
+            font-size: 0.7rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+        .scorecard-box .value {{
+            color: #fafafa;
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-top: 0.15rem;
+        }}
+        </style>
+        <div class="scorecard-grid">
+            <div class="scorecard-box"><div class="label">Precision</div><div class="value">{m['precision']:.1%}</div></div>
+            <div class="scorecard-box"><div class="label">Recall</div><div class="value">{m['recall']:.1%}</div></div>
+            <div class="scorecard-box"><div class="label">F1 Score</div><div class="value">{m['f1']:.3f}</div></div>
+            <div class="scorecard-box"><div class="label">FPR</div><div class="value">{m['fpr']:.3%}</div></div>
+        </div>
+        """, unsafe_allow_html=True)
 
         st.markdown("---")
         st.caption(f"TP: {m['tp']} | FP: {m['fp']} | FN: {m['fn']}")
