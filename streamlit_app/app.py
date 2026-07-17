@@ -75,11 +75,16 @@ st.markdown("""
         margin: 0;
     }
     .flagged-alert {
-        background: #ffe6e6;
+        /* FIX: this div is intentionally empty (just a colored accent strip
+           under flagged rows) — the old light-pink, full-padding version
+           was designed for a light theme and rendered as a big blank pale
+           block on this dark-themed app. Shrunk to a thin strip with a
+           dark reddish tint that fits the theme. */
+        background: rgba(255, 68, 68, 0.12);
         border-left: 4px solid #ff4444;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        margin: 0.5rem 0;
+        border-radius: 0.3rem;
+        height: 4px;
+        margin: 0.35rem 0;
     }
     .investigation-box {
         background: #f9f9f9;
