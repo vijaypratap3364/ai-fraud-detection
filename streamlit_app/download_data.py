@@ -19,7 +19,7 @@ FILES = [
     ("data_synthetic_known_fraud_cases.json", "data/synthetic/known_fraud_cases.json", 0.2),
     ("models_detection_xgboost_model.pkl", "models/detection/xgboost_model.pkl", 335),
     ("models_detection_scaler.pkl", "models/detection/scaler.pkl", 1),
-    ("chroma_db_chrome_db_chroma.sqlite3", "chroma_db/chroma.sqlite3", 1.7),
+    ("chroma_db_chrome_db_chroma.sqlite3", "chroma_db/chrome_db_chroma.sqlite3", 1.7),
     ("chroma_db_c7d34386-454a-469e-a124-6b8f156f1162_data_level0.bin", "chroma_db/c7d34386-454a-469e-a124-6b8f156f1162/data_level0.bin", 0.16),
     ("chroma_db_c7d34386-454a-469e-a124-6b8f156f1162_header.bin", "chroma_db/c7d34386-454a-469e-a124-6b8f156f1162/header.bin", 0.001),
     ("chroma_db_c7d34386-454a-469e-a124-6b8f156f1162_length.bin", "chroma_db/c7d34386-454a-469e-a124-6b8f156f1162/length.bin", 0.001),
