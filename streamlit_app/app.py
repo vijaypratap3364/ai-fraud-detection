@@ -628,7 +628,11 @@ with tab3:
             rows=2, cols=2,
             subplot_titles=('Fraud Probability Over Time', 'Amount Distribution',
                           'Fraud Rate by Hour', 'Investigation Actions'),
-            specs=[[{"secondary_y": True}, {}], [{}, {}]]
+            specs=[[{"secondary_y": True}, {}], [{}, {"type": "domain"}]]
+            # FIX: the bottom-right cell holds a go.Pie trace later in this
+            # function. Pie charts require a "domain"-type subplot cell, not
+            # the default xy-axis type — without this, plotly raises
+            # ValueError as soon as add_trace() tries to place the pie there.
         )
 
         # FIX: DataFrame column is 'fraud_probability', not 'fraud_prob' —
