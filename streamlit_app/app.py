@@ -87,20 +87,25 @@ st.markdown("""
         margin: 0.35rem 0;
     }
     .investigation-box {
-        background: #f9f9f9;
-        border: 1px solid #ddd;
+        /* FIX: same dark-theme issue as the scorecard cards earlier — a
+           near-white background with no explicit text color made this
+           unreadable against inherited light/white theme text. */
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 0.5rem;
         padding: 1rem;
         margin: 0.5rem 0;
         font-family: monospace;
         font-size: 0.85rem;
+        color: #fafafa;
     }
     .tool-call {
-        background: #e8f4fd;
+        background: rgba(31, 119, 180, 0.18);
         border-left: 3px solid #1f77b4;
         padding: 0.5rem;
         margin: 0.25rem 0;
         border-radius: 0.25rem;
+        color: #fafafa;
     }
     .risk-high { color: #ff4444; font-weight: bold; }
     .risk-medium { color: #ff8800; font-weight: bold; }
@@ -365,6 +370,28 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "⚙️ System"
 ])
 
+# FIX: Streamlit's st.tabs() has no official API to switch tabs from code —
+# clicking 🔍 only sets which investigation to display, it can't move you to
+# the tab that shows it, so the page appeared to "do nothing" even though
+# the data loaded correctly in the background. This is the standard
+# workaround: a small script that finds the tab button by its visible text
+# and clicks it in the browser, run once right after the flag is set.
+if st.session_state.get('jump_to_investigations'):
+    st.session_state.jump_to_investigations = False
+    st.components.v1.html("""
+        <script>
+        setTimeout(function() {
+            const tabs = window.parent.document.querySelectorAll('button[data-baseweb="tab"]');
+            for (const tab of tabs) {
+                if (tab.innerText.includes('Investigations')) {
+                    tab.click();
+                    break;
+                }
+            }
+        }, 150);
+        </script>
+    """, height=0)
+
 # ============================================================
 # TAB 1: LIVE FEED
 # ============================================================
@@ -484,6 +511,7 @@ with tab1:
                         with cols[5]:
                             if investigated and st.button("🔍", key=f"view_{txn.get('transaction_id')}_{feed_position}", help="View investigation"):
                                 st.session_state.selected_investigation = txn.get('transaction_id')
+                                st.session_state.jump_to_investigations = True
                                 st.rerun()
 
                         if alert_class:
